@@ -2,7 +2,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-
 datasource db {
   provider = "postgresql"
 }
@@ -12,26 +11,22 @@ enum Role {
   STUDENT
 }
 
-
 enum Difficulty {
   EASY
   MEDIUM
   HARD
 }
 
-
 enum QuestionType {
   SINGLE_CHOICE
   MULTIPLE_CHOICE
 }
-
 
 enum MockTestStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
 }
-
 
 enum AttemptStatus {
   IN_PROGRESS
@@ -40,7 +35,6 @@ enum AttemptStatus {
   CANCELLED
 }
 
-
 enum CompletedBy {
   USER
   SYSTEM
@@ -48,7 +42,6 @@ enum CompletedBy {
 }
 
 model User {
-
   id String @id @default(uuid())
 
   firstName String
@@ -60,34 +53,29 @@ model User {
   passwordHash String
 
   refreshTokens RefreshToken[]
-  
+
   createdMockTests MockTest[]
 
+  attempts Attempt[]
 
   role Role @default(STUDENT)
-
 
   isEmailVerified Boolean @default(false)
 
   isActive Boolean @default(true)
 
-
   lastLoginAt DateTime?
-
 
   createdAt DateTime @default(now())
 
   updatedAt DateTime @updatedAt
 
-
   deletedAt DateTime?
-
 
   @@index([role])
 }
 
 model RefreshToken {
-
   id String @id @default(uuid())
 
   userId String
@@ -115,12 +103,10 @@ model RefreshToken {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
-
   @@index([expiresAt])
 }
 
 model Subject {
-
   id String @id @default(uuid())
 
   name String @unique
@@ -140,9 +126,7 @@ model Subject {
   deletedAt DateTime?
 }
 
-
 model Topic {
-
   id String @id @default(uuid())
 
   subjectId String
@@ -166,13 +150,10 @@ model Topic {
   deletedAt DateTime?
 
   @@unique([subjectId, name])
-
   @@index([subjectId])
 }
 
-
 model Question {
-
   id String @id @default(uuid())
 
   topicId String
@@ -184,6 +165,10 @@ model Question {
   explanation String?
 
   mockTests MockTestQuestion[]
+
+  attemptQuestions AttemptQuestion[]
+
+  answers SubmissionAnswer[]
 
   type QuestionType @default(SINGLE_CHOICE)
 
@@ -208,15 +193,11 @@ model Question {
   deletedAt DateTime?
 
   @@index([topicId])
-
   @@index([difficulty])
-
   @@index([type])
 }
 
-
 model Option {
-
   id String @id @default(uuid())
 
   questionId String
@@ -226,6 +207,8 @@ model Option {
   text String
 
   imageUrl String?
+
+  selectedInAnswers SelectedOption[]
 
   sortOrder Int
 
@@ -239,143 +222,193 @@ model Option {
 }
 
 model MockTest {
-
   id String @id @default(uuid())
-
 
   title String
 
-
   description String?
-
 
   durationMinutes Int
 
-
   status MockTestStatus @default(DRAFT)
-
 
   maxAttempts Int?
 
+  attempts Attempt[]
 
   publishedAt DateTime?
 
-
   createdById String?
-
 
   createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
-
   sections MockTestSection[]
-
 
   questions MockTestQuestion[]
 
-
   isActive Boolean @default(true)
-
 
   createdAt DateTime @default(now())
 
-
   updatedAt DateTime @updatedAt
-
 
   deletedAt DateTime?
 
-
   @@index([status])
-
   @@index([createdById])
 }
 
 model MockTestSection {
-
   id String @id @default(uuid())
-
 
   mockTestId String
 
-
   mockTest MockTest @relation(fields: [mockTestId], references: [id], onDelete: Restrict)
-
 
   name String
 
-
   sortOrder Int
-
 
   durationMinutes Int?
 
-
   questions MockTestQuestion[]
-
 
   createdAt DateTime @default(now())
 
-
   updatedAt DateTime @updatedAt
-
 
   deletedAt DateTime?
 
-
-  @@unique([mockTestId,name])
-
-
+  @@unique([mockTestId, name])
   @@index([mockTestId])
 }
 
 model MockTestQuestion {
-
-
   mockTestId String
-
 
   questionId String
 
-
   sectionId String
-
-
 
   mockTest MockTest @relation(fields: [mockTestId], references: [id], onDelete: Restrict)
 
-
-
   question Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
-
-
 
   section MockTestSection @relation(fields: [sectionId], references: [id], onDelete: Restrict)
 
-
-
   sortOrder Int
-
-
 
   marksOverride Float?
 
-
   negativeMarksOverride Float?
-
-
 
   createdAt DateTime @default(now())
 
-
-
-  @@id([mockTestId,questionId])
-
-
-  @@unique([sectionId,sortOrder])
-
-
+  @@id([mockTestId, questionId])
+  @@unique([sectionId, sortOrder])
   @@index([questionId])
-
-
   @@index([sectionId])
+}
+
+model Attempt {
+  id String @id @default(uuid())
+
+  userId String
+
+  mockTestId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  mockTest MockTest @relation(fields: [mockTestId], references: [id], onDelete: Restrict)
+
+  attemptNumber Int
+
+  status AttemptStatus @default(IN_PROGRESS)
+
+  startedAt DateTime @default(now())
+
+  expiresAt DateTime
+
+  completedAt DateTime?
+
+  completedBy CompletedBy?
+
+  score Float?
+
+  correctCount Int @default(0)
+
+  wrongCount Int @default(0)
+
+  unansweredCount Int @default(0)
+
+  timeTakenSeconds Int?
+
+  attemptQuestions AttemptQuestion[]
+
+  answers SubmissionAnswer[]
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, mockTestId, attemptNumber])
+  @@index([userId])
+  @@index([mockTestId])
+  @@index([status])
+}
+
+model SubmissionAnswer {
+  id String @id @default(uuid())
+
+  attemptId String
+
+  questionId String
+
+  attempt Attempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  isCorrect Boolean?
+
+  marksAwarded Float?
+
+  selectedOptions SelectedOption[]
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([attemptId, questionId])
+  @@index([questionId])
+}
+
+model SelectedOption {
+  answerId String
+
+  optionId String
+
+  answer SubmissionAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+
+  option Option @relation(fields: [optionId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@id([answerId, optionId])
+}
+
+model AttemptQuestion {
+  attemptId String
+
+  questionId String
+
+  attempt Attempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  sortOrder Int
+
+  createdAt DateTime @default(now())
+
+  @@id([attemptId, questionId])
+  @@index([questionId])
 }
