@@ -1,0 +1,381 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  STUDENT
+}
+
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+
+enum QuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+}
+
+
+enum MockTestStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+
+enum AttemptStatus {
+  IN_PROGRESS
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+
+enum CompletedBy {
+  USER
+  SYSTEM
+  ADMIN
+}
+
+model User {
+
+  id String @id @default(uuid())
+
+  firstName String
+
+  lastName String?
+
+  email String @unique
+
+  passwordHash String
+
+  refreshTokens RefreshToken[]
+  
+  createdMockTests MockTest[]
+
+
+  role Role @default(STUDENT)
+
+
+  isEmailVerified Boolean @default(false)
+
+  isActive Boolean @default(true)
+
+
+  lastLoginAt DateTime?
+
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+
+  deletedAt DateTime?
+
+
+  @@index([role])
+}
+
+model RefreshToken {
+
+  id String @id @default(uuid())
+
+  userId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String @unique
+
+  deviceName String?
+
+  userAgent String?
+
+  createdByIp String?
+
+  lastUsedIp String?
+
+  expiresAt DateTime
+
+  lastUsedAt DateTime?
+
+  revokedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+
+  @@index([expiresAt])
+}
+
+model Subject {
+
+  id String @id @default(uuid())
+
+  name String @unique
+
+  code String @unique
+
+  description String?
+
+  topics Topic[]
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  deletedAt DateTime?
+}
+
+
+model Topic {
+
+  id String @id @default(uuid())
+
+  subjectId String
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+
+  name String
+
+  description String?
+
+  displayOrder Int @default(0)
+
+  questions Question[]
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  deletedAt DateTime?
+
+  @@unique([subjectId, name])
+
+  @@index([subjectId])
+}
+
+
+model Question {
+
+  id String @id @default(uuid())
+
+  topicId String
+
+  topic Topic @relation(fields: [topicId], references: [id], onDelete: Restrict)
+
+  text String
+
+  explanation String?
+
+  mockTests MockTestQuestion[]
+
+  type QuestionType @default(SINGLE_CHOICE)
+
+  difficulty Difficulty @default(MEDIUM)
+
+  marks Float @default(1)
+
+  negativeMarks Float @default(0)
+
+  imageUrl String?
+
+  isActive Boolean @default(true)
+
+  isLocked Boolean @default(false)
+
+  options Option[]
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  deletedAt DateTime?
+
+  @@index([topicId])
+
+  @@index([difficulty])
+
+  @@index([type])
+}
+
+
+model Option {
+
+  id String @id @default(uuid())
+
+  questionId String
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  text String
+
+  imageUrl String?
+
+  sortOrder Int
+
+  isCorrect Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  @@index([questionId])
+}
+
+model MockTest {
+
+  id String @id @default(uuid())
+
+
+  title String
+
+
+  description String?
+
+
+  durationMinutes Int
+
+
+  status MockTestStatus @default(DRAFT)
+
+
+  maxAttempts Int?
+
+
+  publishedAt DateTime?
+
+
+  createdById String?
+
+
+  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+
+  sections MockTestSection[]
+
+
+  questions MockTestQuestion[]
+
+
+  isActive Boolean @default(true)
+
+
+  createdAt DateTime @default(now())
+
+
+  updatedAt DateTime @updatedAt
+
+
+  deletedAt DateTime?
+
+
+  @@index([status])
+
+  @@index([createdById])
+}
+
+model MockTestSection {
+
+  id String @id @default(uuid())
+
+
+  mockTestId String
+
+
+  mockTest MockTest @relation(fields: [mockTestId], references: [id], onDelete: Restrict)
+
+
+  name String
+
+
+  sortOrder Int
+
+
+  durationMinutes Int?
+
+
+  questions MockTestQuestion[]
+
+
+  createdAt DateTime @default(now())
+
+
+  updatedAt DateTime @updatedAt
+
+
+  deletedAt DateTime?
+
+
+  @@unique([mockTestId,name])
+
+
+  @@index([mockTestId])
+}
+
+model MockTestQuestion {
+
+
+  mockTestId String
+
+
+  questionId String
+
+
+  sectionId String
+
+
+
+  mockTest MockTest @relation(fields: [mockTestId], references: [id], onDelete: Restrict)
+
+
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+
+
+  section MockTestSection @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+
+
+
+  sortOrder Int
+
+
+
+  marksOverride Float?
+
+
+  negativeMarksOverride Float?
+
+
+
+  createdAt DateTime @default(now())
+
+
+
+  @@id([mockTestId,questionId])
+
+
+  @@unique([sectionId,sortOrder])
+
+
+  @@index([questionId])
+
+
+  @@index([sectionId])
+}
